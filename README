@@ -1,0 +1,167 @@
+321CA - Mihai Daniel Soare
+Communications Protocols
+
+Homework 1 - Sexy Router in C
+
+warning: i hate uppercases so i wont use them too much
+
+April 2022
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Router
+    - the program is an implementation of a Router in C that simulates the transmission of packets
+    between 2 n-devices.
+    - it can receive ARP, ICMP and normal data packets and also send them to the next hop stored
+    in a routing table or drops the packet if its not.
+
+* Tasks done
+    - all of them + bonus;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* How to use the program
+
+__Topology__
+
+- in this simulation there is one topology that contains 2 routers and 4 n-devices.
+
+H0                          H2
+   -- R0 ----------- R1 --    
+H1                          H3
+
+- between every n-device and Router and between Routers there are different networks
+- to start the topology is used the comand `sudo python3 topo.py` and simulates it with a cool
+emulator called mininet
+
+__Entry Point__
+
+- the Router starts in a while true loop that waits for packets to be sent;
+
+__Input__
+
+- the input is extracted from the command line prompt and there are 4 parameters, the routing table
+file and the interfaces of the router;
+
+__Tricks__
+
+- used auxiliary functions to parse headers and to send arp / icmp from the last year homework skel;
+- made a type of binary search that correct the entry from the routing table so it could really get
+the longest match for the next hop;
+- modularization of the code is pretty nice and used principles from oop for functions;
+
+__Structures__
+
+- Routing Table that has the Network Address IP, Next Hop IP, Address Mask and 
+interface of the router from where the packet should go next to get to that network
+
+- ARP Table that maps the MAC and IP of an n-device;
+
+- Queue that has the copies of packets that are going to be sent;
+
+__Delivery of the Packets__
+
+- wait packets from the wire and then manipulates it like this:
+
+(1) -> parses the ethernet header from the packet that contains type of the packet, MAC src &
+MAC dest of the packet sent;
+(2) -> checks if the packet (from the layer 2 frame) is destined for router or is a broadcast
+frame, otherwise drops it
+(3) -> checks the type of the packet:
+
+- There are two types of L3 packets to take in: ARP or IPv4;
+
+------------------------------ ETHER_TYPE == ARP ------------------------------
+
+!! ARP = Address Resolution Protocol used to get the MAC address corresponding to a destination IP
+in a network, because in a Local Network there is a need to know the MAC destitination of the
+receiver of the first packet sent.
+
+-a- 
+    - parses the ARP header instead of the IPv4 header
+
+-b-
+    - checks type of ARP => ARP Request or ARP Reply
+
+~~~ ARP Request ~~~
+
+- if the packet is an arp request sent to the router, it sends back an ARP Reply 
+with his MAC address on the interface from where the packet came from.
+    (an ARP Reply)
+        - creating a new ether header for the packet with the router MAC from the interface
+        where the packet came from and with the MAC from where the packet came frome.
+        - sending an ARP 
+
+~~~ ARP Reply ~~~
+
+- if the packet is an arp reply the MAC address and destination IP are extracted from the packet
+and they are added in the ARP Table as a new entry if there isn't one already
+- then checks in the queue of packets if there is a packet that has the IP gotten from the
+ARP Reply and then sends the old packet to the destination
+
+!!! sending (an ARP)
+- an ARP packet specified fields like MAC length, type, IP length, type and op
+- MAC src and IP src from where the packet came from
+- MAC dest and IP Dest from where the packet came from
+- building a new packet with the old ether header and the new arp header formed;
+
+------------------------------ ETHER_TYPE == IPv4 ------------------------------
+
+-a- - parses the IP header from the payload
+
+-b- - checks if the checksum corresponds otherwise drop the packet
+
+-c- - checks if the TTL is > 1, otherwise sends and ICMP Time Exceeded and drops the packet
+
+-d- - checks if the packet is destined for router so send an ICMP Echo Reply, then drops
+    the old packet
+
+-e- - calculates the next hop of the packet with binary search in a sorted routing table
+
+-f- - checks if the next hop of the packet is in the routing table otherwise send an ICMP Dest
+    Unreachable and drops the packet
+
+-g- - calculates new checksum of the packet with the RFC 1624 incremental method 
+    equation no4
+
+-h- - gets the MAC address of the next hop IP from the ARP table, otherwise send an arp
+request to get the MAC address of the next hop and adds a copy of the old packet in the 
+queue of the packets which is going to be sent later
+
+-h- - if the packet has an ARP table entry then fills the L2 header and sends it to the
+wire
+
+
+!!!!!!! PROTOCOL = ICMP !!!!!!!
+
+!!! The ICMP is a L4 header but is not a transport protocol so it is added after the L3 IPv4
+or ARP. In our case, it is after IPv4 ip header.
+
+A. Sending an ICMP (Echo Reply)
+    - creating a new packet
+    - with a new ether header _ inverting the mac src and mac dest
+    - with a new ip header _ inverting ip src and ip dest, also completing with
+    specific fields
+    - also copies from old packet the icmp header and all 64 bytes of the remaining packet
+    - makes changes to the icmp header so it has the characteristics of an ICMP Echo Reply
+    - checksum for the icmp packet and also for the ip checksum
+    - send the packet on the interface at last
+
+B. Sending an ICMP (Error Time Exceeded or Network Unreachable)
+    - same as the ICMP but instead of copying the old ICMP header creates a new one
+    - completing specific fields of Error Time Exceeded and Network Unreachable
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Feedback
+
+- this homework was done in A LOT of days, i spent 2 days on learning about internet structures
+then spent a lot with debugging. over-all took me like 7 days from which 3 days were like 15h per day
+and 1 day for README and nice code
+this homework really is HARD 
+- i SPENT a lot on debugging ICMP cause the packets are different than on the internet
+- pros: learning cool stuff that are not basic like web dev
+- pros: learning wireshark
+- cons: NO ONE TEACHING u wireshark, maybe a demo of that for next year would really work
+- cons: ARP and ICMP not being explained in 4th laboratory
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
